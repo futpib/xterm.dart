@@ -41,9 +41,12 @@ class ZModemCallbackOffer implements ZModemOffer {
   }
 }
 
-final _zmodemSenderInit = '**\x18B0000000'.codeUnits;
+// ZHEX preamble: ZPAD ZPAD ZDLE ZHEX
+final _zmodemHexSenderInit = '**\x18B0000000'.codeUnits;
+final _zmodemHexReceiverInit = '**\x18B0100000'.codeUnits;
 
-final _zmodemReceiverInit = '**\x18B0100000'.codeUnits;
+// ZBIN preamble: ZPAD ZDLE ZBIN
+final _zmodemBinPreamble = [0x2a, 0x18, 0x41]; // * CAN A
 
 class ZModemMux {
   /// Data from the underlying data channel.
@@ -97,11 +100,19 @@ class ZModemMux {
     }
   }
 
+  /// Queue of chunks waiting to be processed by [_handleZModem].
+  /// Used to serialize async processing of ZMODEM data so that only one
+  /// chunk is processed at a time. Without this, concurrent calls to the
+  /// async _handleZModem can corrupt the ZModemCore parser state.
+  final _zmodemQueue = <Uint8List>[];
+  bool _zmodemProcessing = false;
+
   /// This is the entry point of multiplexing, dispatching data to ZModem or
   /// terminal depending on the current state.
   void _handleStdout(Uint8List chunk) {
     if (_session != null) {
-      _handleZModem(chunk);
+      _zmodemQueue.add(chunk);
+      _drainZModemQueue();
       return;
     }
 
@@ -112,11 +123,26 @@ class ZModemMux {
     _terminalSink.add(chunk);
   }
 
+  void _drainZModemQueue() {
+    if (_zmodemProcessing) return;
+    _zmodemProcessing = true;
+    _drainZModemQueueAsync();
+  }
+
+  Future<void> _drainZModemQueueAsync() async {
+    while (_zmodemQueue.isNotEmpty) {
+      final chunk = _zmodemQueue.removeAt(0);
+      await _handleZModem(chunk);
+    }
+    _zmodemProcessing = false;
+  }
+
   /// Detects a ZModem session in [chunk] and starts it if found. Returns true
   /// if a session was started.
   bool _detectZModem(Uint8List chunk) {
-    final index = chunk.listIndexOf(_zmodemSenderInit) ??
-        chunk.listIndexOf(_zmodemReceiverInit);
+    final index = chunk.listIndexOf(_zmodemHexSenderInit) ??
+        chunk.listIndexOf(_zmodemHexReceiverInit) ??
+        chunk.listIndexOf(_zmodemBinPreamble);
 
     if (index != null) {
       _terminalSink.add(Uint8List.sublistView(chunk, 0, index));
@@ -127,14 +153,15 @@ class ZModemMux {
         },
       );
 
-      _handleZModem(Uint8List.sublistView(chunk, index));
+      _zmodemQueue.add(Uint8List.sublistView(chunk, index));
+      _drainZModemQueue();
       return true;
     }
 
     return false;
   }
 
-  void _handleZModem(Uint8List chunk) async {
+  Future<void> _handleZModem(Uint8List chunk) async {
     for (final event in _session!.receive(chunk)) {
       /// remote is sz
       if (event is ZFileOfferedEvent) {
@@ -142,9 +169,9 @@ class ZModemMux {
       } else if (event is ZFileDataEvent) {
         _handleZFileDataEvent(event);
       } else if (event is ZFileEndEvent) {
-        await _handleZFileEndEvent(event);
+        _handleZFileEndEvent(event);
       } else if (event is ZSessionFinishedEvent) {
-        await _handleZSessionFinishedEvent(event);
+        _handleZSessionFinishedEvent(event);
       }
 
       /// remote is rz
@@ -177,13 +204,13 @@ class ZModemMux {
     _receiveSink!.add(event.data as Uint8List);
   }
 
-  Future<void> _handleZFileEndEvent(ZFileEndEvent event) async {
-    await _closeReceiveSink();
+  void _handleZFileEndEvent(ZFileEndEvent event) {
+    _closeReceiveSink();
   }
 
-  Future<void> _handleZSessionFinishedEvent(ZSessionFinishedEvent event) async {
+  void _handleZSessionFinishedEvent(ZSessionFinishedEvent event) {
     _flush();
-    await _reset();
+    _reset();
   }
 
   Future<void> _handleFileRequestEvent(ZReadyToSendEvent event) async {
@@ -256,9 +283,13 @@ class ZModemMux {
     );
   }
 
-  Future<void> _closeReceiveSink() async {
+  void _closeReceiveSink() {
     _stdoutSubscription.resume();
-    await _receiveSink?.close();
+    // Do not await close() — if the subscriber (e.g. pipe) has paused
+    // the stream, close() will hang forever waiting for the done event
+    // to be delivered. The subscriber will still receive all buffered
+    // data and the done event once it resumes.
+    _receiveSink?.close();
     _receiveSink = null;
   }
 
@@ -268,8 +299,8 @@ class ZModemMux {
   }
 
   /// Clears all ZModem state.
-  Future<void> _reset() async {
-    await _closeReceiveSink();
+  void _reset() {
+    _closeReceiveSink();
     _fileOffers = null;
     _session = null;
   }
