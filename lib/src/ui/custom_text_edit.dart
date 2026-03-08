@@ -19,6 +19,8 @@ class CustomTextEdit extends StatefulWidget {
     this.inputAction = TextInputAction.newline,
     this.keyboardAppearance = Brightness.light,
     this.deleteDetection = false,
+    this.onCommitEditingState,
+    this.onInput,
   });
 
   final Widget child;
@@ -46,6 +48,14 @@ class CustomTextEdit extends StatefulWidget {
   final Brightness keyboardAppearance;
 
   final bool deleteDetection;
+
+  final TextEditingValue? Function(TextEditingValue committed)? onCommitEditingState;
+
+  /// Called with the base and current editing states when composing completes.
+  /// When provided, the app is responsible for computing the diff and sending
+  /// input to the terminal. When null, the default onInsert/onDelete handling
+  /// is used.
+  final void Function(TextEditingValue baseState, TextEditingValue currentState)? onInput;
 
   @override
   CustomTextEditState createState() => CustomTextEditState();
@@ -175,6 +185,8 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
 
       // setEditableRect(Rect.zero, Rect.zero);
 
+      _baseEditingState = _initEditingState.copyWith();
+      _currentEditingState = _initEditingState.copyWith();
       _connection!.setEditingState(_initEditingState);
     }
   }
@@ -196,6 +208,7 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
           selection: TextSelection.collapsed(offset: 0),
         );
 
+  late var _baseEditingState = _initEditingState.copyWith();
   late var _currentEditingState = _initEditingState.copyWith();
 
   @override
@@ -222,11 +235,14 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
 
     widget.onComposing(null);
 
-    if (_currentEditingState.text.length < _initEditingState.text.length) {
+    if (widget.onInput != null) {
+      widget.onInput!(_baseEditingState, _currentEditingState);
+    } else if (_currentEditingState.text.length <
+        _baseEditingState.text.length) {
       widget.onDelete();
     } else {
       final textDelta = _currentEditingState.text.substring(
-        _initEditingState.text.length,
+        _baseEditingState.text.length,
       );
 
       widget.onInsert(textDelta);
@@ -234,8 +250,16 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
 
     // Reset editing state if composing is done
     if (_currentEditingState.composing.isCollapsed &&
-        _currentEditingState.text != _initEditingState.text) {
-      _connection!.setEditingState(_initEditingState);
+        _currentEditingState.text != _baseEditingState.text) {
+      final newState = widget.onCommitEditingState?.call(_currentEditingState);
+      if (newState != null) {
+        _baseEditingState = newState;
+        _currentEditingState = newState;
+        _connection!.setEditingState(newState);
+      } else {
+        _currentEditingState = _initEditingState.copyWith();
+        _connection!.setEditingState(_initEditingState);
+      }
     }
   }
 

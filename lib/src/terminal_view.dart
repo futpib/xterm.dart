@@ -43,6 +43,8 @@ class TerminalView extends StatefulWidget {
     this.cursorType = TerminalCursorType.block,
     this.alwaysShowCursor = false,
     this.deleteDetection = false,
+    this.onCommitEditingState,
+    this.onInput,
     this.shortcuts,
     this.onKeyEvent,
     this.readOnly = false,
@@ -120,6 +122,16 @@ class TerminalView extends StatefulWidget {
   /// emit hardware delete event. Prefered on mobile platforms. [false] by
   /// default.
   final bool deleteDetection;
+
+  /// Called after composing completes with the committed editing state.
+  /// Return a [TextEditingValue] to retain as IME context (e.g. for glide
+  /// typing), or null to reset to the initial state.
+  final TextEditingValue? Function(TextEditingValue committed)? onCommitEditingState;
+
+  /// Called with the base and current editing states when composing completes.
+  /// When provided, the app is responsible for computing the diff and sending
+  /// input to the terminal. When null, the default handling is used.
+  final void Function(TextEditingValue baseState, TextEditingValue currentState)? onInput;
 
   /// Shortcuts for this terminal. This has higher priority than input handler
   /// of the terminal If not provided, [defaultTerminalShortcuts] will be used.
@@ -267,6 +279,8 @@ class TerminalViewState extends State<TerminalView> {
         inputType: widget.keyboardType,
         keyboardAppearance: widget.keyboardAppearance,
         deleteDetection: widget.deleteDetection,
+        onCommitEditingState: widget.onCommitEditingState,
+        onInput: widget.onInput,
         onInsert: _onInsert,
         onDelete: () {
           if (widget.scrollOnInput) _scrollToBottom();
