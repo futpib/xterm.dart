@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:xterm/xterm.dart';
+import 'package:xterm/src/ui/custom_text_edit.dart';
 
 import '../_fixture/_fixture.dart';
 
@@ -418,6 +419,87 @@ void main() {
       verify(inputHandler.call(any));
       expect(terminalOutput.join(), 'AAA');
     });
+  });
+
+  group('TerminalView.onCommitEditingState', () {
+    testWidgets(
+      'rejected commit resets _baseEditingState so next input diffs correctly',
+      (tester) async {
+        final terminal = Terminal();
+
+        // Track all (baseState, currentState) pairs received by onInput
+        final inputCalls = <(TextEditingValue, TextEditingValue)>[];
+
+        // First commit accepted (retains text as IME context),
+        // second commit rejected (e.g. ctrl key was held).
+        var rejectNextCommit = false;
+
+        await tester.pumpWidget(MaterialApp(
+          home: Scaffold(
+            body: TerminalView(
+              terminal,
+              autofocus: true,
+              onCommitEditingState: (committed) {
+                if (rejectNextCommit) {
+                  rejectNextCommit = false;
+                  return null;
+                }
+                // Accept: retain the committed text as IME context
+                return committed;
+              },
+              onInput: (baseState, currentState) {
+                inputCalls.add((baseState, currentState));
+              },
+            ),
+          ),
+        ));
+
+        await tester.tap(find.byType(TerminalView));
+        await tester.pump(Duration(seconds: 1));
+
+        final customTextEditState =
+            tester.state<CustomTextEditState>(find.byType(CustomTextEdit));
+
+        // Step 1: Type "kievuri baked" — accepted commit.
+        // This sets _baseEditingState = "kievuri baked".
+        customTextEditState.updateEditingValue(const TextEditingValue(
+          text: 'kievuri baked',
+          selection: TextSelection.collapsed(offset: 13),
+        ));
+
+        expect(inputCalls, hasLength(1));
+        expect(inputCalls[0].$1.text, '');
+        expect(inputCalls[0].$2.text, 'kievuri baked');
+
+        // Step 2: Type "kievuri baked w" with ctrl — rejected commit.
+        // Simulates ctrl+w where onCommitEditingState returns null.
+        rejectNextCommit = true;
+        customTextEditState.updateEditingValue(const TextEditingValue(
+          text: 'kievuri baked w',
+          selection: TextSelection.collapsed(offset: 15),
+        ));
+
+        expect(inputCalls, hasLength(2));
+        expect(inputCalls[1].$1.text, 'kievuri baked');
+        expect(inputCalls[1].$2.text, 'kievuri baked w');
+
+        // Step 3: Next IME update sends just "w".
+        // If _baseEditingState was properly reset to "", base should be "".
+        // If the bug is present, base is still "kievuri baked",
+        // causing a diff of 13 deletions + "w" insertion.
+        customTextEditState.updateEditingValue(const TextEditingValue(
+          text: 'w',
+          selection: TextSelection.collapsed(offset: 1),
+        ));
+
+        expect(inputCalls, hasLength(3));
+        expect(inputCalls[2].$1.text, '',
+            reason:
+                '_baseEditingState should be reset to initial after rejected '
+                'commit, not retain the stale "kievuri baked"');
+        expect(inputCalls[2].$2.text, 'w');
+      },
+    );
   });
 
   group('TerminalView.simulateScroll', () {

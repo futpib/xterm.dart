@@ -242,6 +242,7 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
         _currentEditingState = newState;
         _connection!.setEditingState(newState);
       } else {
+        _baseEditingState = _initEditingState.copyWith();
         _currentEditingState = _initEditingState.copyWith();
         _connection!.setEditingState(_initEditingState);
       }
