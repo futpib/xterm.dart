@@ -15,9 +15,7 @@ class CustomTextEdit extends StatefulWidget {
     this.autofocus = false,
     this.readOnly = false,
     // this.initEditingState = TextEditingValue.empty,
-    this.inputType = TextInputType.text,
-    this.inputAction = TextInputAction.newline,
-    this.keyboardAppearance = Brightness.light,
+    required this.textInputConfiguration,
     this.deleteDetection = false,
     this.onCommitEditingState,
     this.onInput,
@@ -41,11 +39,7 @@ class CustomTextEdit extends StatefulWidget {
 
   final bool readOnly;
 
-  final TextInputType inputType;
-
-  final TextInputAction inputAction;
-
-  final Brightness keyboardAppearance;
+  final TextInputConfiguration textInputConfiguration;
 
   final bool deleteDetection;
 
@@ -83,7 +77,7 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
       _closeInputConnectionIfNeeded();
     } else if (oldWidget.readOnly && widget.focusNode.hasFocus) {
       _openInputConnection();
-    } else if (hasInputConnection && widget.inputType != oldWidget.inputType) {
+    } else if (hasInputConnection && widget.textInputConfiguration != oldWidget.textInputConfiguration) {
       _closeInputConnectionIfNeeded();
       _openInputConnection();
     }
@@ -170,16 +164,7 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
     if (hasInputConnection) {
       _connection!.show();
     } else {
-      final config = TextInputConfiguration(
-        inputType: widget.inputType,
-        inputAction: widget.inputAction,
-        keyboardAppearance: widget.keyboardAppearance,
-        autocorrect: false,
-        enableSuggestions: false,
-        enableIMEPersonalizedLearning: false,
-      );
-
-      _connection = TextInput.attach(this, config);
+      _connection = TextInput.attach(this, widget.textInputConfiguration);
 
       _connection!.show();
 

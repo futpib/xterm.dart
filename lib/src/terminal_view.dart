@@ -38,8 +38,14 @@ class TerminalView extends StatefulWidget {
     this.onSecondaryTapDown,
     this.onSecondaryTapUp,
     this.mouseCursor = SystemMouseCursors.text,
-    this.keyboardType = TextInputType.emailAddress,
-    this.keyboardAppearance = Brightness.dark,
+    this.textInputConfiguration = const TextInputConfiguration(
+      inputType: TextInputType.emailAddress,
+      inputAction: TextInputAction.newline,
+      keyboardAppearance: Brightness.dark,
+      autocorrect: false,
+      enableSuggestions: false,
+      enableIMEPersonalizedLearning: false,
+    ),
     this.cursorType = TerminalCursorType.block,
     this.alwaysShowCursor = false,
     this.deleteDetection = false,
@@ -102,14 +108,7 @@ class TerminalView extends StatefulWidget {
   /// [SystemMouseCursors.text] by default.
   final MouseCursor mouseCursor;
 
-  /// The type of information for which to optimize the text input control.
-  /// [TextInputType.emailAddress] by default.
-  final TextInputType keyboardType;
-
-  /// The appearance of the keyboard. [Brightness.dark] by default.
-  ///
-  /// This setting is only honored on iOS devices.
-  final Brightness keyboardAppearance;
+  final TextInputConfiguration textInputConfiguration;
 
   /// The type of cursor to use. [TerminalCursorType.block] by default.
   final TerminalCursorType cursorType;
@@ -276,8 +275,7 @@ class TerminalViewState extends State<TerminalView> {
         key: _customTextEditKey,
         focusNode: _focusNode,
         autofocus: widget.autofocus,
-        inputType: widget.keyboardType,
-        keyboardAppearance: widget.keyboardAppearance,
+        textInputConfiguration: widget.textInputConfiguration,
         deleteDetection: widget.deleteDetection,
         onCommitEditingState: widget.onCommitEditingState,
         onInput: widget.onInput,
