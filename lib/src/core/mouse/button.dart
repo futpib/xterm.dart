@@ -5,21 +5,21 @@ enum TerminalMouseButton {
 
   right(id: 2),
 
-  wheelUp(id: 64 + 4, isWheel: true),
+  wheelUp(id: 64, isWheel: true),
 
-  wheelDown(id: 64 + 5, isWheel: true),
+  wheelDown(id: 65, isWheel: true),
 
-  wheelLeft(id: 64 + 6, isWheel: true),
+  wheelLeft(id: 66, isWheel: true),
 
-  wheelRight(id: 64 + 7, isWheel: true),
+  wheelRight(id: 67, isWheel: true),
   ;
 
   /// The id that is used to report a button press or release to the terminal.
   ///
-  /// Mouse wheel up / down use button IDs 4 = 0100 (binary) and 5 = 0101 (binary).
-  /// The bits three and four of the button are transposed by 64 and 128
-  /// respectively, when reporting the id of the button and have have to be
-  /// adjusted correspondingly.
+  /// Wheel buttons use the low two bits (0..3) plus 64. Physical button
+  /// numbers 4..7 must not be added to 64: the value 4 is the Shift modifier.
+  /// See "Wheel mice" in the XTerm Control Sequences documentation:
+  /// https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
   final int id;
 
   /// Whether this button is a mouse wheel button.
