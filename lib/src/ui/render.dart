@@ -157,7 +157,8 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
   var _stickToBottom = true;
 
   void _onScroll() {
-    _stickToBottom = _scrollOffset >= _maxScrollExtent;
+    _stickToBottom =
+        _controller.selection == null && _scrollOffset >= _maxScrollExtent;
     markNeedsLayout();
     _notifyEditableRect();
   }
@@ -172,6 +173,7 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
   }
 
   void _onControllerUpdate() {
+    if (_controller.selection != null) _stickToBottom = false;
     markNeedsLayout();
   }
 
@@ -215,7 +217,7 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
 
     _updateScrollOffset();
 
-    if (_stickToBottom) {
+    if (_stickToBottom && _controller.selection == null) {
       _offset.correctBy(_maxScrollExtent - _scrollOffset);
     }
   }

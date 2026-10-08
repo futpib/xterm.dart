@@ -253,4 +253,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Copy'), findsNothing);
   });
+  testWidgets('viewport shrink does not scroll an active selection out of view',
+      (tester) async {
+    final scroll = ScrollController();
+    Widget app(double height, bool resize) => MaterialApp(
+          home: Scaffold(
+              body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+                width: 600,
+                height: height,
+                child: TerminalView(terminal,
+                    key: key,
+                    controller: controller,
+                    scrollController: scroll,
+                    autoResize: resize)),
+          )),
+        );
+    await tester.pumpWidget(app(300, true));
+    terminal.write('hello world');
+    await tester.pumpAndSettle();
+    await select(tester);
+    await tester.pumpWidget(app(100, false));
+    await tester.pumpAndSettle();
+    expect(scroll.offset, 0);
+    expect(find.text('Copy'), findsOneWidget);
+    expect(terminal.buffer.getText(controller.selection!), 'hello');
+    await tester.tap(find.text('Copy'));
+    await tester.pumpAndSettle();
+    expect(scroll.offset, 0,
+        reason: 'Copy must not restore stale stick-to-bottom');
+  });
 }

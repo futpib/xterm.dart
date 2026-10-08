@@ -499,7 +499,9 @@ class TerminalViewState extends State<TerminalView> {
   void _onKeyboardShow() {
     if (_focusNode.hasFocus && widget.scrollOnInput) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
+        if (mounted && widget.scrollOnInput && _controller.selection == null) {
+          _scrollToBottom();
+        }
       });
     }
   }
