@@ -14,6 +14,7 @@ import 'package:xterm/src/ui/keyboard_listener.dart';
 import 'package:xterm/src/ui/keyboard_visibility.dart';
 import 'package:xterm/src/ui/render.dart';
 import 'package:xterm/src/ui/scroll_handler.dart';
+import 'package:xterm/src/ui/selection_overlay.dart';
 import 'package:xterm/src/ui/shortcut/actions.dart';
 import 'package:xterm/src/ui/shortcut/shortcuts.dart';
 import 'package:xterm/src/ui/terminal_text_style.dart';
@@ -180,6 +181,27 @@ class TerminalViewState extends State<TerminalView> {
 
   String? _composingText;
 
+  TerminalSelectionOverlay? _selectionOverlay;
+
+  /// Show mobile handles and the Copy/Paste/Select All menu for the selection.
+  void showSelectionToolbar() {
+    _selectionOverlay ??= TerminalSelectionOverlay(
+      context: context,
+      terminal: widget.terminal,
+      controller: _controller,
+      renderTerminal: () => renderTerminal,
+      scrollController: _scrollController,
+      readOnly: widget.readOnly,
+      onPaste: () {
+        if (widget.scrollOnInput) _scrollToBottom();
+      },
+    );
+    _selectionOverlay!.show();
+  }
+
+  /// Dismiss mobile selection controls without changing the selection.
+  void hideSelectionToolbar() => _selectionOverlay?.hide();
+
   late TerminalController _controller;
 
   late ScrollController _scrollController;
@@ -189,6 +211,7 @@ class TerminalViewState extends State<TerminalView> {
   @override
   void initState() {
     _focusNode = widget.focusNode ?? FocusNode();
+    _focusNode.addListener(_onSelectionFocusChanged);
     _controller = widget.controller ?? TerminalController();
     _scrollController = widget.scrollController ?? ScrollController();
     _shortcutManager = ShortcutManager(
@@ -199,11 +222,20 @@ class TerminalViewState extends State<TerminalView> {
 
   @override
   void didUpdateWidget(TerminalView oldWidget) {
+    if (oldWidget.terminal != widget.terminal ||
+        oldWidget.controller != widget.controller ||
+        oldWidget.scrollController != widget.scrollController ||
+        oldWidget.readOnly != widget.readOnly) {
+      _selectionOverlay?.dispose();
+      _selectionOverlay = null;
+    }
     if (oldWidget.focusNode != widget.focusNode) {
+      _focusNode.removeListener(_onSelectionFocusChanged);
       if (oldWidget.focusNode == null) {
         _focusNode.dispose();
       }
       _focusNode = widget.focusNode ?? FocusNode();
+      _focusNode.addListener(_onSelectionFocusChanged);
     }
     if (oldWidget.controller != widget.controller) {
       if (oldWidget.controller == null) {
@@ -221,8 +253,20 @@ class TerminalViewState extends State<TerminalView> {
     super.didUpdateWidget(oldWidget);
   }
 
+  void _onSelectionFocusChanged() {
+    if (!_focusNode.hasFocus) _selectionOverlay?.hide();
+  }
+
+  @override
+  void deactivate() {
+    _selectionOverlay?.hide();
+    super.deactivate();
+  }
+
   @override
   void dispose() {
+    _selectionOverlay?.dispose();
+    _focusNode.removeListener(_onSelectionFocusChanged);
     if (widget.focusNode == null) {
       _focusNode.dispose();
     }
@@ -257,6 +301,7 @@ class TerminalViewState extends State<TerminalView> {
           cursorType: widget.cursorType,
           alwaysShowCursor: widget.alwaysShowCursor,
           onEditableRect: _onEditableRect,
+          onSelectionGeometry: () => _selectionOverlay?.update(),
           composingText: _composingText,
         );
       },
@@ -366,6 +411,7 @@ class TerminalViewState extends State<TerminalView> {
   }
 
   void _onTapDown(_) {
+    hideSelectionToolbar();
     if (_controller.selection != null) {
       _controller.clearSelection();
     } else {
@@ -485,6 +531,7 @@ class _TerminalView extends LeafRenderObjectWidget {
     required this.cursorType,
     required this.alwaysShowCursor,
     this.onEditableRect,
+    this.onSelectionGeometry,
     this.composingText,
   });
 
@@ -512,6 +559,8 @@ class _TerminalView extends LeafRenderObjectWidget {
 
   final EditableRectCallback? onEditableRect;
 
+  final VoidCallback? onSelectionGeometry;
+
   final String? composingText;
 
   @override
@@ -529,6 +578,7 @@ class _TerminalView extends LeafRenderObjectWidget {
       cursorType: cursorType,
       alwaysShowCursor: alwaysShowCursor,
       onEditableRect: onEditableRect,
+      onSelectionGeometry: onSelectionGeometry,
       composingText: composingText,
     );
   }
@@ -547,6 +597,7 @@ class _TerminalView extends LeafRenderObjectWidget {
       ..focusNode = focusNode
       ..cursorType = cursorType
       ..alwaysShowCursor = alwaysShowCursor
+      ..onSelectionGeometry = onSelectionGeometry
       ..onEditableRect = onEditableRect
       ..composingText = composingText;
   }

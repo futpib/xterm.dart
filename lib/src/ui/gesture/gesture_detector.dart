@@ -105,6 +105,12 @@ class _TerminalGestureDetectorState extends State<TerminalGestureDetector> {
   }
 
   @override
+  void dispose() {
+    _doubleTapTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final gestures = <Type, GestureRecognizerFactory>{};
 

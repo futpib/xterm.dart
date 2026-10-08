@@ -99,6 +99,19 @@ terminal.write('Hello, world!');
 
 **Done!**
 
+## Mobile text selection
+
+On Android and iOS, long press or double tap a word to show draggable selection
+handles and a platform-styled **Copy / Paste / Select All** menu. Drag either
+handle to adjust the range; holding a handle near the viewport edge scrolls
+through the buffer. Copy preserves soft-wrapped lines, and Select All includes
+scrollback in the active buffer. Paste uses the terminal's bracketed-paste mode
+when enabled and is omitted for read-only views.
+
+Tapping elsewhere in the terminal dismisses the selection. Controls follow
+scrolling and resizing, and are dismissed on focus loss, buffer switches, or
+view disposal. Desktop mouse selection and keyboard shortcuts are unchanged.
+
 ## More examples
 
 - Write a simple terminal in ~100 lines of code:

@@ -158,11 +158,15 @@ class _TerminalGestureHandlerState extends State<TerminalGestureHandler> {
 
   void onDoubleTapDown(TapDownDetails details) {
     renderTerminal.selectWord(details.localPosition);
+    if (details.kind != PointerDeviceKind.mouse) {
+      terminalView.showSelectionToolbar();
+    }
   }
 
   void onLongPressStart(LongPressStartDetails details) {
     _lastLongPressStartDetails = details;
     renderTerminal.selectWord(details.localPosition);
+    terminalView.showSelectionToolbar();
   }
 
   void onLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
@@ -175,6 +179,7 @@ class _TerminalGestureHandlerState extends State<TerminalGestureHandler> {
   // void onLongPressUp() {}
 
   void onDragStart(DragStartDetails details) {
+    terminalView.hideSelectionToolbar();
     _lastDragStartDetails = details;
 
     details.kind == PointerDeviceKind.mouse

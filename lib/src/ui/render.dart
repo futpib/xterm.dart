@@ -33,6 +33,7 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     required TerminalCursorType cursorType,
     required bool alwaysShowCursor,
     EditableRectCallback? onEditableRect,
+    this.onSelectionGeometry,
     String? composingText,
   })  : _terminal = terminal,
         _controller = controller,
@@ -132,6 +133,8 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     _alwaysShowCursor = value;
     markNeedsPaint();
   }
+
+  VoidCallback? onSelectionGeometry;
 
   EditableRectCallback? _onEditableRect;
   set onEditableRect(EditableRectCallback? value) {
@@ -396,6 +399,7 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
   void paint(PaintingContext context, Offset offset) {
     _paint(context, offset);
     context.setWillChangeHint();
+    onSelectionGeometry?.call();
   }
 
   void _paint(PaintingContext context, Offset offset) {
