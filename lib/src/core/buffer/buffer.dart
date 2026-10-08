@@ -205,24 +205,29 @@ class Buffer {
     currentLine.eraseRange(start, start + count, terminal.cursor);
   }
 
-  void scrollDown(int lines) {
-    for (var i = absoluteMarginBottom; i >= absoluteMarginTop; i--) {
-      if (i >= absoluteMarginTop + lines) {
-        this.lines[i] = this.lines[i - lines];
-      } else {
-        this.lines[i] = _newEmptyLine();
-      }
-    }
+  void scrollDown(int count) {
+    final top = absoluteMarginTop;
+    final bottom = absoluteMarginBottom;
+    count = count.clamp(0, bottom - top + 1);
+    if (count == 0) return;
+
+    // Move through the indexed buffer API. Assigning an existing line into a
+    // second slot lets a later assignment detach that line from its new slot.
+    lines.remove(bottom - count + 1, count);
+    lines.insertAll(top, List.generate(count, (_) => _newEmptyLine()));
   }
 
-  void scrollUp(int lines) {
-    for (var i = absoluteMarginTop; i <= absoluteMarginBottom; i++) {
-      if (i <= absoluteMarginBottom - lines) {
-        this.lines[i] = this.lines[i + lines];
-      } else {
-        this.lines[i] = _newEmptyLine();
-      }
-    }
+  void scrollUp(int count) {
+    final top = absoluteMarginTop;
+    final bottom = absoluteMarginBottom;
+    count = count.clamp(0, bottom - top + 1);
+    if (count == 0) return;
+
+    lines.remove(top, count);
+    lines.insertAll(
+      bottom - count + 1,
+      List.generate(count, (_) => _newEmptyLine()),
+    );
   }
 
   /// https://vt100.net/docs/vt100-ug/chapter3.html#IND IND – Index

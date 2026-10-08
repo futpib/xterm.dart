@@ -284,4 +284,40 @@ void main() {
     expect(scroll.offset, 0,
         reason: 'Copy must not restore stale stick-to-bottom');
   });
+
+  testWidgets('viewport shrink keeps a bottom selection above the keyboard',
+      (tester) async {
+    final scroll = ScrollController();
+    Widget app(double height, bool resize) => MaterialApp(
+          home: Scaffold(
+              body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+                width: 600,
+                height: height,
+                child: TerminalView(terminal,
+                    key: key,
+                    controller: controller,
+                    scrollController: scroll,
+                    autoResize: resize)),
+          )),
+        );
+    await tester.pumpWidget(app(300, true));
+    final row = terminal.viewHeight - 2;
+    terminal.write('\r\n' * row + 'hello world');
+    await tester.pumpAndSettle();
+    await tester.longPressAt(cell(2, row));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(app(100, false));
+    await tester.pumpAndSettle();
+    expect(scroll.offset, greaterThan(0));
+    final render = key.currentState!.renderTerminal;
+    final top = render.getOffset(CellOffset(0, row)).dy;
+    expect(top, greaterThanOrEqualTo(0));
+    expect(top + render.lineHeight, lessThanOrEqualTo(100.01));
+    expect(find.text('Copy'), findsOneWidget);
+    await tester.tap(find.text('Copy'));
+    await tester.pumpAndSettle();
+    expect(clipboard, 'hello');
+  });
 }

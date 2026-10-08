@@ -211,6 +211,13 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
 
   @override
   void performLayout() {
+    final oldHeight = hasSize ? _viewportHeight : 0.0;
+    final selection = _controller.selection?.normalized;
+    final selectionTop = selection == null
+        ? null
+        : selection.begin.y * lineHeight - _scrollOffset;
+    final selectionWasVisible =
+        selectionTop != null && selectionTop >= 0 && selectionTop < oldHeight;
     size = constraints.biggest;
 
     _updateViewportSize();
@@ -219,6 +226,15 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
 
     if (_stickToBottom && _controller.selection == null) {
       _offset.correctBy(_maxScrollExtent - _scrollOffset);
+    } else if (_viewportHeight < oldHeight && selectionWasVisible) {
+      // The keyboard can cover a selection near the bottom. Keep its first
+      // line visible without following the cursor or undoing manual scrolling.
+      final currentSelection = _controller.selection?.normalized;
+      if (currentSelection != null) {
+        final bottom = (currentSelection.begin.y + 1) * lineHeight;
+        final target = (bottom - _viewportHeight).clamp(0.0, _maxScrollExtent);
+        if (target > _scrollOffset) _offset.correctBy(target - _scrollOffset);
+      }
     }
   }
 
