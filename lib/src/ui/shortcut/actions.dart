@@ -10,6 +10,7 @@ class TerminalActions extends StatelessWidget {
     required this.terminal,
     required this.controller,
     required this.child,
+    this.onPaste,
   });
 
   final Terminal terminal;
@@ -17,6 +18,8 @@ class TerminalActions extends StatelessWidget {
   final TerminalController controller;
 
   final Widget child;
+
+  final VoidCallback? onPaste;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +30,7 @@ class TerminalActions extends StatelessWidget {
             final data = await Clipboard.getData(Clipboard.kTextPlain);
             final text = data?.text;
             if (text != null) {
+              onPaste?.call();
               terminal.paste(text);
               controller.clearSelection();
             }

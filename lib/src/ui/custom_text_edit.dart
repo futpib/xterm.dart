@@ -121,6 +121,18 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
     _connection?.setEditingState(value);
   }
 
+  /// Finish pending composition before input that changes the terminal's cursor
+  /// or line, then discard IME context that no longer describes that position.
+  void resetInput() {
+    if (!_currentEditingState.composing.isCollapsed) {
+      updateEditingValue(_currentEditingState.copyWith(composing: TextRange.empty));
+    }
+    _baseEditingState = _initEditingState;
+    _currentEditingState = _initEditingState;
+    widget.onComposing(null);
+    _connection?.setEditingState(_initEditingState);
+  }
+
   void setEditableRect(Rect rect, Rect caretRect) {
     if (!hasInputConnection) {
       return;
@@ -251,7 +263,7 @@ class CustomTextEditState extends State<CustomTextEdit> with TextInputClient {
 
   @override
   void performAction(TextInputAction action) {
-    // print('performAction $action');
+    resetInput();
     widget.onAction(action);
   }
 

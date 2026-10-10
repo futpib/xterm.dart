@@ -296,10 +296,10 @@ class TerminalSelectionOverlay {
     final entry = _entry;
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     if (_disposed || entry != _entry || data?.text == null) return;
+    onPaste();
     terminal.paste(data!.text!);
     controller.clearSelection();
     hide();
-    onPaste();
   }
 
   void _selectAll() {

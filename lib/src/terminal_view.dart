@@ -193,11 +193,16 @@ class TerminalViewState extends State<TerminalView> {
       scrollController: _scrollController,
       readOnly: widget.readOnly,
       onPaste: () {
+        resetInput();
         if (widget.scrollOnInput) _scrollToBottom();
       },
     );
     _selectionOverlay!.show();
   }
+
+  /// Call before sending toolbar keys or other input outside this view's IME.
+  /// Pending composition is committed and stale correction candidates cleared.
+  void resetInput() => _customTextEditKey.currentState?.resetInput();
 
   /// Dismiss mobile selection controls without changing the selection.
   void hideSelectionToolbar() => _selectionOverlay?.hide();
@@ -354,6 +359,7 @@ class TerminalViewState extends State<TerminalView> {
     }
 
     child = TerminalActions(
+      onPaste: resetInput,
       terminal: widget.terminal,
       controller: _controller,
       child: child,
@@ -489,6 +495,7 @@ class TerminalViewState extends State<TerminalView> {
       shift: HardwareKeyboard.instance.isShiftPressed,
     );
 
+    if (handled) resetInput();
     if (handled && widget.scrollOnInput) {
       _scrollToBottom();
     }
