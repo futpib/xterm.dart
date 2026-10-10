@@ -32,6 +32,38 @@ extension ToIndexedValue<T> on T {
 
 void main() {
   group("IndexAwareCircularBuffer", () {
+    for (final wrapped in [false, true]) {
+      test('trim preserves ownership and indices, wrapped=$wrapped', () {
+        final cl = IndexAwareCircularBuffer<IndexedValue<int>>(10);
+        for (var i = 0; i < (wrapped ? 15 : 10); i++) {
+          cl.push(IndexedValue(i));
+        }
+        final before = cl.toList();
+        cl.trimStart(3);
+        for (var i = 0; i < 3; i++) {
+          expect(before[i].attached, isFalse);
+        }
+        for (var i = 0; i < cl.length; i++) {
+          expect(cl[i], same(before[i + 3]));
+          expect(cl[i].attached, isTrue);
+          expect(cl[i].index, i);
+        }
+        cl.remove(1);
+        cl.insert(1, IndexedValue(99));
+        for (var i = 0; i < cl.length; i++) {
+          expect(cl[i].attached, isTrue);
+          expect(cl[i].index, i);
+        }
+        cl.trimStart(100);
+        expect(cl.length, 0);
+        for (final item in before) {
+          expect(item.attached, isFalse);
+        }
+        cl.push(IndexedValue(100));
+        expect(cl[0].index, 0);
+      });
+    }
+
     test("normal creation test", () {
       final cl = IndexAwareCircularBuffer<IndexedValue<int>>(1000);
 

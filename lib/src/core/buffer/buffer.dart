@@ -425,18 +425,19 @@ class Buffer {
 
     setCursorX(0);
 
-    count = min(count, absoluteMarginBottom - absoluteCursorY + 1);
+    final start = absoluteCursorY;
+    final bottom = absoluteMarginBottom;
+    count = count.clamp(0, bottom - start + 1);
+    if (count == 0) return;
 
-    final linesToMove = absoluteMarginBottom - absoluteCursorY + 1 - count;
-
-    for (var i = 0; i < linesToMove; i++) {
-      final index = absoluteCursorY + i;
-      lines[index] = lines[index + count];
-    }
-
-    for (var i = 0; i < count; i++) {
-      lines[absoluteMarginBottom - i] = _newEmptyLine();
-    }
+    // Assigning a line into overlapping slots detaches it when its old slot
+    // is replaced. Move through the indexed API to preserve surviving anchors
+    // and keep subsequent region scrolling safe.
+    lines.remove(start, count);
+    lines.insertAll(
+      bottom - count + 1,
+      List.generate(count, (_) => _newEmptyLine()),
+    );
   }
 
   void resize(int oldWidth, int oldHeight, int newWidth, int newHeight) {
